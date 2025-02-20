@@ -1,9 +1,10 @@
 import sys
 from Helmet_Detection_PyTorch.components.data_ingestion import DataIngestion
 from Helmet_Detection_PyTorch.components.data_transformation import DataTransformation
+from Helmet_Detection_PyTorch.components.model_trainer import ModelTrainer
 from Helmet_Detection_PyTorch.configuration.s3_operations import S3Operation
-from Helmet_Detection_PyTorch.entity.config_entity import DataIngestionConfig,DataTransformationConfig
-from Helmet_Detection_PyTorch.entity.artifacts_entity import DataIngestionArtifacts, DataTransformationArtifacts
+from Helmet_Detection_PyTorch.entity.config_entity import DataIngestionConfig,DataTransformationConfig,ModelTrainerConfig
+from Helmet_Detection_PyTorch.entity.artifacts_entity import DataIngestionArtifacts, DataTransformationArtifacts, ModelTrainerArtifacts
 from Helmet_Detection_PyTorch.logger import logging
 from Helmet_Detection_PyTorch.exception import HelmetException
 
@@ -14,6 +15,7 @@ class TrainPipeline:
     def __init__(self):
         self.data_ingestion_config = DataIngestionConfig()
         self.data_transformation_config = DataTransformationConfig()
+        self.model_trainer_config = ModelTrainerConfig()
         self.s3_operations = S3Operation()
 
 
@@ -55,6 +57,21 @@ class TrainPipeline:
 
         except Exception as e:
             raise HelmetException(e, sys) from e
+        
+    def start_model_trainer(self, data_transformation_artifact: DataTransformationArtifacts) -> ModelTrainerArtifacts:
+        logging.info(
+            "Entered the start_model_trainer method of TrainPipeline class"
+        )
+        try:
+            model_trainer = ModelTrainer(data_transformation_artifacts=data_transformation_artifact,
+                                        model_trainer_config=self.model_trainer_config
+                                        )
+            model_trainer_artifact = model_trainer.initiate_model_trainer()
+            logging.info("Exited the start_model_trainer method of TrainPipeline class")
+            return model_trainer_artifact
+
+        except Exception as e:
+            raise HelmetException(e, sys)
 
 
     
@@ -64,6 +81,9 @@ class TrainPipeline:
             data_ingestion_artifact = self.start_data_ingestion()
             data_transformation_artifact = self.start_data_transformation(
                 data_ingestion_artifact=data_ingestion_artifact
+            )
+            model_trainer_artifact = self.start_model_trainer(
+                data_transformation_artifact=data_transformation_artifact
             )
             logging.info("Exited the run_pipeline method of TrainPipeline class")
 
